@@ -4,6 +4,7 @@
 #include <thread>
 #include "SharedObject.h"
 #include "thread.h"
+#include "semaphore.h"
 
 using namespace std;
 
@@ -32,9 +33,11 @@ class WriterThread : public Thread{
 		virtual long ThreadMain(void) override{
 			//declare shared memory var so this thread can access it
 			Shared<MyShared> sharedMemory ("sharedMemory");
+            Semaphore* read_guard = new Semaphore("read_guard");
+	        Semaphore* write_guard = new Semaphore("write_guard");
 			while(true)
 			{	
-				//write to shared memory 
+                write_guard->Wait();
 				sharedMemory->threadId = this->threadNum;
 				sharedMemory->reportId = this->reportId;
 				this->reportId += 1;
@@ -43,6 +46,7 @@ class WriterThread : public Thread{
 				time(&currentTime);
 				sharedMemory->time = difftime(currentTime, startTime);
 				this->startTime = currentTime;
+                read_guard->Signal();
 
 				if(flag){//Exit loop to end the thread
 					break;
@@ -58,7 +62,10 @@ int main(void)
 {
 	std::cout << "I am a Writer" << std::endl;
 	
-	Shared<MyShared> shared("sharedMemory", true); //This is the owner of sharedMamory
+	Shared<MyShared> shared("sharedMemory", true);
+    Semaphore* write_guard = new Semaphore("write_guard", 1, true); 
+	Semaphore* read_guard = new Semaphore("read_guard", 0, true); 
+
 	int counter = 0;
 	std::queue<WriterThread *> childThreads;
 	
@@ -87,6 +94,3 @@ int main(void)
 	}
 	
 }
-
-
-
